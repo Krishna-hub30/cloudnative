@@ -1,40 +1,59 @@
-const http = require('http');
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
 
-// Simple calculation function
-function calculateExpression(expr) {
-    try {
-        // Only allow numbers, operators and dot
-        if (!/^[0-9+\-*/%. ()]+$/.test(expr)) {
-            throw new Error("Invalid characters in expression");
-        }
-        const result = eval(expr);
-        if (result === Infinity || result === -Infinity) throw new Error("Division by zero");
-        return result;
-    } catch {
-        throw new Error("Invalid expression");
-    }
-}
+const PORT = 5000;
 
 const server = http.createServer((req, res) => {
-    if (req.method === 'POST' && req.url === '/calculate') {
-        let body = '';
-        req.on('data', chunk => body += chunk.toString());
-        req.on('end', () => {
-            try {
-                const { expression } = JSON.parse(body);
-                const result = calculateExpression(expression);
-                res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                res.end(JSON.stringify({ success: true, result }));
-            } catch (err) {
-                res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                res.end(JSON.stringify({ success: false, error: err.message }));
+
+    // Serve HTML file
+    if (req.method === "GET" && req.url === "/") {
+        const filePath = path.join(__dirname, "index.html");
+        fs.readFile(filePath, (err, data) => {
+            if (err) {
+                res.writeHead(500);
+                res.end("Error loading file");
+            } else {
+                res.writeHead(200, { "Content-Type": "text/html" });
+                res.end(data);
             }
         });
-    } else {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: 'Route not found' }));
+    }
+
+    // Handle Calculation
+    else if (req.method === "POST" && req.url === "/calculate") {
+        let body = "";
+
+        req.on("data", chunk => {
+            body += chunk.toString();
+        });
+
+        req.on("end", () => {
+            try {
+                const { expression } = JSON.parse(body);
+
+                // Allow only numbers and operators
+                if (!/^[0-9+\-*/. ]+$/.test(expression)) {
+                    throw new Error("Invalid Expression");
+                }
+
+                const result = eval(expression);
+
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ result }));
+            } catch (error) {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ result: "Error" }));
+            }
+        });
+    }
+
+    else {
+        res.writeHead(404);
+        res.end("Not Found");
     }
 });
 
-const PORT = 5000;
-server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+server.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+});
